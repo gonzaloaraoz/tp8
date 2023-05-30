@@ -57,11 +57,11 @@
 #include <stdbool.h>
 
 /* === Definicion y Macros ================================================= */
-#define COUNT_DELAY 3000000
+#define COUNT_DELAY 1000000
 
 /* === Declaraciones de tipos de datos internos ============================ */
 typedef struct parametros_s {
-    digital_output led;
+    digital_output_t led;
     uint16_t periodo;
 } * parametros_t;
 
@@ -88,14 +88,32 @@ void Delay(void) {
 
 
 void Blinking(void * parameters) {
-    parametros_t parameters = parameters;
+    parametros_t parametros = parameters;
 
     while (true) {
-        DigitalOutputToggle(parameters->led);
-        /vTaskDelay(pdMS_TO_TICKS(parameters->pediodo));
+        DigitalOutputToggle(parametros->led);
+        vTaskDelay(pdMS_TO_TICKS(parametros->periodo));
         //DigitalOutputToggle(board->led_rojo);
         //vTaskDelay(pdMS_TO_TICKS(500));
         //Delay()
+    }
+}
+
+void Teclado(void * parameters) {
+    board_t board = parameters;
+
+    TaskHandle_t tarea;
+
+    tarea = xTaskGetHandle("Rojo");
+
+    while (true) {
+        if (DigitalInputHasActivated(board->boton_prender)) {
+            vTaskResume(tarea);
+        }
+        if (DigitalInputHasActivated(board->boton_apagar)) { 
+            vTaskSuspend(tarea);
+        }
+        vTaskDelay(pdMS_TO_TICKS(250));
     }
 }
 
@@ -112,7 +130,8 @@ void Blinking(void * parameters) {
  */
 int main(void) {
 
-    static struct parametros_s[2] 
+    static board_t board;
+    static struct parametros_s parametros[2] ;
     
     /* Inicializaciones y configuraciones de dispositivos */
     board = BoardCreate();
@@ -130,9 +149,10 @@ int main(void) {
     /* Creación de las tareas */
     //xTaskCreate(Blinking, "Baliza", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
     xTaskCreate(Blinking, "Rojo", configMINIMAL_STACK_SIZE, &parametros[0], tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(Blinking, "Verde", configMINIMAL_STACK_SIZE, &parametros[1], tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(Blinking, "Amarillo", configMINIMAL_STACK_SIZE, &parametros[2], tskIDLE_PRIORITY + 1, NULL);
-
+    xTaskCreate(Blinking, "Verde", configMINIMAL_STACK_SIZE, &parametros[1], tskIDLE_PRIORITY + 2, NULL);
+    xTaskCreate(Blinking, "Amarillo", configMINIMAL_STACK_SIZE, &parametros[2], tskIDLE_PRIORITY + 3l, NULL);
+    xTaskCreate(Teclado, "TeclaUno", configMINIMAL_STACK_SIZE, (void *) board, tskIDLE_PRIORITY + 4, NULL);
+    xTaskCreate(Teclado, "TeclaDos", configMINIMAL_STACK_SIZE, (void *) board, tskIDLE_PRIORITY + 5, NULL);
     
     
     /* Arranque del sistema operativo */
